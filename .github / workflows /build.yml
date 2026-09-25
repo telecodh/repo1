@@ -171,3 +171,4 @@ jobs:
             --title "Captura Pantalla v1.0 (build ${{ github.run_number }})" \
             --notes "APK listo para instalar en Android 10+."
             
+
