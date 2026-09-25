@@ -22,6 +22,7 @@ jobs:
         with:
           gradle-version: 8.14.3
       - name: Extraer codigo y subirlo al repo
+        if: hashFiles('app/build.gradle.kts') == ''
         run: |
           base64 -d > /tmp/src.tgz <<'B64'
           H4sIAAAAAAAAA+w8y3IbR5I68yvKWMdMQwKLBB+iB7G0DAIQhREfWACSxzueRRS6i2CL3V3tfoCiZUXMfQ973LPPe9qYm/c2+pP5
@@ -148,7 +149,7 @@ jobs:
           JED5yy1w7td+t/F2cqerm08nUmPvyoIP4XvA2fBV42lFiBVnvskP9Lddck/GA29CZlMheW3XubpCtsMOy0yd6RAfZS00we3voksn
           VvZLz0MJJZRQQgkllFDC/wv8FxyorHYAyAAA
           B64
-          tar xzf /tmp/src.tgz
+          tar xzf /tmp/src.tgz --exclude=./.github
           gradle wrapper --gradle-version 8.14.3
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
