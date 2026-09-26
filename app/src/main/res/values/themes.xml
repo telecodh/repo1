@@ -3,4 +3,10 @@
         <item name="android:statusBarColor">#1E88E5</item>
         <item name="android:colorAccent">#1E88E5</item>
     </style>
+    <style name="Theme.Editor" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:statusBarColor">#1B2127</item>
+        <item name="android:navigationBarColor">#1B2127</item>
+        <item name="android:colorAccent">#1E88E5</item>
+    </style>
 </resources>

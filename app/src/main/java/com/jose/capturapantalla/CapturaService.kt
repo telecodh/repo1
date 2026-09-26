@@ -7,7 +7,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.content.res.Configuration
@@ -21,21 +20,16 @@ import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
-import android.os.Environment
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
 import android.os.Looper
-import android.provider.MediaStore
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.Toast
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlin.math.abs
 
 /**
@@ -70,6 +64,7 @@ class CapturaService : Service() {
         hilo = HandlerThread("captura").also { it.start() }
         fondo = Handler(hilo.looper)
         crearCanal()
+        instancia = this
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -187,20 +182,45 @@ class CapturaService : Service() {
         burbuja?.visibility = View.INVISIBLE
         // Esperamos a que la burbuja desaparezca de pantalla y llegue un fotograma nuevo.
         fondo.postDelayed({
-            val img = ultimaImagen
-            val bitmap = img?.let { aBitmap(it) }
-            val ok = bitmap?.let { guardar(it) } ?: false
-            bitmap?.recycle()
+            val bitmap = ultimaImagen?.let { aBitmap(it) }
             principal.post {
-                burbuja?.visibility = View.VISIBLE
                 capturando = false
-                Toast.makeText(
-                    this,
-                    if (ok) "Captura guardada en Imágenes/Capturas" else "No se pudo hacer la captura",
-                    Toast.LENGTH_SHORT
-                ).show()
+                // La burbuja debe estar visible al abrir el editor (requisito de Android 15
+                // para abrir actividades desde segundo plano con permiso de superposición).
+                burbuja?.visibility = View.VISIBLE
+                if (bitmap == null) {
+                    Toast.makeText(this, "No se pudo hacer la captura", Toast.LENGTH_SHORT).show()
+                } else {
+                    abrirEditor(bitmap)
+                }
             }
         }, RETARDO_MS)
+    }
+
+    private fun abrirEditor(bitmap: Bitmap) {
+        capturaPendiente = bitmap
+        try {
+            startActivity(
+                Intent(this, EditorActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            )
+        } catch (e: Exception) {
+            // Si el sistema no deja abrir el editor, al menos guardamos la captura.
+            capturaPendiente = null
+            fondo.post {
+                val ok = Imagenes.guardarEnGaleria(this, bitmap) != null
+                principal.post {
+                    Toast.makeText(this,
+                        if (ok) "Captura guardada en Imágenes/Capturas" else "No se pudo guardar",
+                        Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    /** El editor oculta la burbuja mientras está abierto. */
+    fun burbujaVisible(visible: Boolean) {
+        burbuja?.visibility = if (visible) View.VISIBLE else View.GONE
     }
 
     private fun aBitmap(img: Image): Bitmap {
@@ -215,27 +235,6 @@ class CapturaService : Service() {
         val recortado = Bitmap.createBitmap(tmp, 0, 0, img.width, img.height)
         tmp.recycle()
         return recortado
-    }
-
-    private fun guardar(bmp: Bitmap): Boolean {
-        val nombre = "Captura_" + SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".png"
-        val valores = ContentValues().apply {
-            put(MediaStore.Images.Media.DISPLAY_NAME, nombre)
-            put(MediaStore.Images.Media.MIME_TYPE, "image/png")
-            put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Capturas")
-            put(MediaStore.Images.Media.IS_PENDING, 1)
-        }
-        val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, valores) ?: return false
-        return try {
-            contentResolver.openOutputStream(uri)?.use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
-            valores.clear()
-            valores.put(MediaStore.Images.Media.IS_PENDING, 0)
-            contentResolver.update(uri, valores, null, null)
-            true
-        } catch (e: Exception) {
-            contentResolver.delete(uri, null, null)
-            false
-        }
     }
 
     // ---------------------------------------------------------------- Burbuja
@@ -319,7 +318,7 @@ class CapturaService : Service() {
         return Notification.Builder(this, CANAL)
             .setSmallIcon(R.drawable.ic_camara)
             .setContentTitle("Captura Pantalla activa")
-            .setContentText("Toca el botón flotante para capturar la pantalla")
+            .setContentText("Toca el botón flotante para capturar y editar")
             .setContentIntent(abrir)
             .setOngoing(true)
             .addAction(Notification.Action.Builder(null, "Detener", parar).build())
@@ -348,6 +347,7 @@ class CapturaService : Service() {
     }
 
     override fun onDestroy() {
+        if (instancia === this) instancia = null
         if (activo) detener()
         hilo.quitSafely()
         super.onDestroy()
@@ -365,5 +365,13 @@ class CapturaService : Service() {
         @Volatile
         var activo = false
             private set
+
+        /** Servicio en marcha (para que el editor muestre/oculte la burbuja). */
+        var instancia: CapturaService? = null
+            private set
+
+        /** Captura recién hecha que el editor recoge al abrirse. */
+        @Volatile
+        var capturaPendiente: Bitmap? = null
     }
 }

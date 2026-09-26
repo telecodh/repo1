@@ -24,6 +24,22 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".EditorActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Editor"
+            android:taskAffinity="com.jose.capturapantalla.editor"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden" />
+
+        <provider
+            android:name=".ArchivosProvider"
+            android:authorities="${applicationId}.archivos"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
         <service
             android:name=".CapturaService"
             android:exported="false"

@@ -53,9 +53,12 @@ class MainActivity : Activity() {
         })
         raiz.addView(TextView(this).apply {
             text = "Pulsa «Iniciar» y aparecerá un botón flotante con una cámara. " +
-                "Tócalo en cualquier momento para hacer una captura de pantalla. " +
-                "Puedes arrastrarlo para moverlo.\n\n" +
-                "Las capturas se guardan en Imágenes › Capturas."
+                "Tócalo en cualquier momento para capturar la pantalla; se abre el editor:\n\n" +
+                "• Zona: arrastra para quedarte solo con una parte\n" +
+                "• Lápiz, línea, flecha, marco, marcador y texto, en 7 colores\n" +
+                "• ↶ deshace el último cambio\n" +
+                "• Copiar, Compartir o Guardar (en Imágenes › Capturas)\n\n" +
+                "Puedes arrastrar el botón flotante para moverlo."
             textSize = 16f
             setTextColor(Color.DKGRAY)
             setPadding(0, dp(16), 0, dp(24))
